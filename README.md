@@ -22,3 +22,29 @@ race condition이 발생했다는 점은 [재고시스템으로 알아보는 동
 - lock의 범위 </br>
     - 발급된 쿠폰 개수 가져오기 ⭢ 쿠폰 발급까지 **lock을 거는 구간이 길어** 성능 상의 불이익이 있을 수 있다.
     - 프로젝트의 핵심 키는 **쿠폰 개수**이므로 **쿠폰 수에 대한 정합성**만 맞추면 되므로 모든 구간에 락을 거는 것은 비효율적이다.
+
+## 💾 Redis를 이용한 해결 방법
+redis 통해 해결할 수 있는 이유는 다음과 같다.
+- redis는 **싱글스레드 기반**으로 동작하므로 race condition을 해결할 수 있다.
+- `incr` 명령어의 성능이 좋다. </br>
+  (※ `incr` 명령어는 key에 대한 value를 1씩 증가시킨다.)
+
+### 결과
+[ApplyService.java](https://github.com/develop-hani/FCFS_coupon_system/blob/master/api/src/main/java/com/practice/api/service/ApplyService.java) 에서 쿠폰의 수를 redis increment()통해 가져올 때</br>
+`long count = countCouponRepository.increment()` 테스트 케이스가 성공적으로 실행되는 것을 확인할 수 있다.
+![redis를 통한 해결 결과](./image/redis를_통한_race_condition_해결.png)
+
+### 발생할 수 있는 문제점
+- 발급하는 쿠폰의 수가 많아질수록 **RDB에 부하**를 줄 수 있다.
+  - 1분에 100개의 insert만 가능하다고 가정할 때,
+  
+    |Time|Request|
+    |---|---|
+    |10:00|쿠폰 발급 10,000개 요청|
+    |10:01|주문 생성 요청|
+    |10:02|회원 가입 요청|
+  - 이 경우 주문 생성과 회원 가입 요청은 쿠폰이 모두 발급된 이후 가능한다. </br>
+  </br>
+  
+  ⇒ RDB에 쿠폰을 발급하는 DB와 다른 DB를 함께 사용한다면 **다른 서비스에도 영향**을 줄 수 있다. </br>
+  ⇒ **time-out이 설정**되어있는 대부분의 서비스를 고려한다면, 주문 생성, 회원가입 요청은 물론 일부 쿠폰도 정상적으로 발급되지 않는 문제가 발생할 수 있다.
