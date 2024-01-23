@@ -13,4 +13,12 @@
 
 ![race_condition](./image/여러명_응모_시_race_condition_발생.png)
 
-이는 <u>여러 스레드가 동시에 사용자들에게 쿠폰을 발급하는</u> **race condition**이 발생하였기 때문이다.
+이는 <u>여러 스레드가 동시에 사용자들에게 쿠폰을 발급하는</u> **race condition**이 발생하였기 때문이다. 
+</br>
+</br>
+
+### Lock을 통해 해결하면 되지 않나??
+race condition이 발생했다는 점은 [재고시스템으로 알아보는 동시성 이슈](https://github.com/develop-hani/Stock_concurrency_issue) 와 같지만 MySQL이나 Redis로 lock을 걸어 해결하지 않는 이유는 다음과 같다. </br>
+- lock의 범위 </br>
+    - 발급된 쿠폰 개수 가져오기 ⭢ 쿠폰 발급까지 **lock을 거는 구간이 길어** 성능 상의 불이익이 있을 수 있다.
+    - 프로젝트의 핵심 키는 **쿠폰 개수**이므로 **쿠폰 수에 대한 정합성**만 맞추면 되므로 모든 구간에 락을 거는 것은 비효율적이다.
