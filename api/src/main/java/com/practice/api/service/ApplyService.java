@@ -1,6 +1,7 @@
 package com.practice.api.service;
 
 import com.practice.api.domain.Coupon;
+import com.practice.api.producer.CouponCreateProducer;
 import com.practice.api.repository.CouponCountRepository;
 import com.practice.api.repository.CouponRepository;
 import org.springframework.stereotype.Service;
@@ -10,10 +11,12 @@ public class ApplyService {
 
     private final CouponRepository couponRepository;
     private final CouponCountRepository couponCountRepository;
+    private final CouponCreateProducer couponCreateProducer;
 
-    public ApplyService(CouponRepository couponRepository, CouponCountRepository couponCountRepository) {
+    public ApplyService(CouponRepository couponRepository, CouponCountRepository couponCountRepository, CouponCreateProducer couponCreateProducer) {
         this.couponRepository = couponRepository;
         this.couponCountRepository = couponCountRepository;
+        this.couponCreateProducer = couponCreateProducer;
     }
 
     // 쿠폰 발급
@@ -24,7 +27,7 @@ public class ApplyService {
             return;
         }
 
-        couponRepository.save(new Coupon(userId));
+        couponCreateProducer.create(userId);
     }
 
 }
