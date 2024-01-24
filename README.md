@@ -48,3 +48,38 @@ redis 통해 해결할 수 있는 이유는 다음과 같다.
   
   ⇒ RDB에 쿠폰을 발급하는 DB와 다른 DB를 함께 사용한다면 **다른 서비스에도 영향**을 줄 수 있다. </br>
   ⇒ **time-out이 설정**되어있는 대부분의 서비스를 고려한다면, 주문 생성, 회원가입 요청은 물론 일부 쿠폰도 정상적으로 발급되지 않는 문제가 발생할 수 있다.
+
+## 📢 Kafka를 이용한 해결 방법
+Redis와 함께 카프카를 사용한다면 RDB의 부하를 줄일 수 있다. </br>
+
+1. docker-compose로 kafka container를 실행한다.
+    - [docker-compose.yml](/kafka/docker-compose.yml)
+    - `docker-compose up -d`
+2. `coupon_create`라는 **topic을 생성**하여 해당 topic을 통해 데이터를 produce하고 consume할 수 있도록 한다.
+    - `docker exec -it kafka kafka-topics.sh --bootstrap-server localhost:9092 --create --topic coupon_createdocker exec -it kafka kafka-topics.sh --bootstrap-server localhost:9092 --create --topic coupon_create`
+    - consumer를 실행하고 싶다면 아래 명령어를 사용하면 된다.
+      - `docker exec -it kafka kafka-console-consumer.sh --topic coupon_create --bootstrap-server localhost:9092 --key-deserializer "org.apache.kafka.common.serialization.StringDeserializer" --value-deserializer "org.apache.kafka.common.serialization.LongDeserializer"`
+3. [Kafka에 **데이터를 produce하기 위한 설정**](https://github.com/develop-hani/FCFS_coupon_system/blob/master/api/src/main/java/com/practice/api/config/KafkaProducerConfig.java)을 한 뒤, `kafkaTemplate`을 이용하여 [`coupon_create` 토픽으로 데이터를 전달](https://github.com/develop-hani/FCFS_coupon_system/blob/master/api/src/main/java/com/practice/api/producer/CouponCreateProducer.java)할 수 있도록 한다.
+4. [Kafka에서 **데이터를 consume할 수 있는 설정**](https://github.com/develop-hani/FCFS_coupon_system/blob/master/consumer/src/main/java/com/practice/consumer/config/KafkaConsumerConfig.java)을 한 뒤, [consumer로 들어온 데이터를 받아 쿠폰을 발행](https://github.com/develop-hani/FCFS_coupon_system/blob/master/consumer/src/main/java/com/practice/consumer/consumer/CouponCreatedConsumer.java)할 수 있도록 한다. 
+
+### 테스트 실행 시 주의할 점
+Testcase에서는 데이터를 모두 송신하였지만 consumer는 아직 데이터를 처리 중일 수 있다.
+
+|Time|Test case|Producer|Consumer|
+|---|---|---|---|
+|10:00|테스트 케이스 시작| |데이터 수신 중..|
+|10:01| |데이터 전송 완료| 데이터 처리..|
+|10:02 |테스트 케이스 종료| |데이터 처리..|
+|10:02| | |데이터 처리..|
+|10:04| | |데이터 처리 완료|
+
+Testcode에 Thread가 대기할 수 있도록 하여 consumer가 데이터 처리를 완료할 때까지 기다리도록 한다.</br>
+`Thread.sleep(10000);`
+
+### 장·단점
+**장점**
+- API에서 직접 쿠폰을 생성할 때에 비해서 **처리량을 조절**할 수 있다.
+- 따라서 **데이터베이스의 부하를 줄**일 수 있다.
+
+**단점**
+- 쿠폰 생성까지 약간의 텀이 발생할 수 있다.
