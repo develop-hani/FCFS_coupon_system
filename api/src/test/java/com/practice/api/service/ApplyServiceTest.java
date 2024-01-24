@@ -48,6 +48,8 @@ public class ApplyServiceTest {
 
         latch.await();
 
+        Thread.sleep(10000); // consumer가 데이터를 수신해서 처리할 때까지의 대기 시간
+
         long count = couponRepository.count();
 
         assertThat(count).isEqualTo(100);
