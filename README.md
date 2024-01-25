@@ -102,3 +102,14 @@ Testcode에 Thread가 대기할 수 있도록 하여 consumer가 데이터 처�
 ### redis에서 set 활용하기
 `sadd` 명령어를 활용하여 test라는 key에 value로 자료구조를 넣고있다.
 ![redis에서 set 활용하기](./image/redis_set_활용.png)
+
+## ⚠️Consumer에서 error 발생 시 처리 방법
+consumer에서 에러가 발생한다면, 실제로 쿠폰을 발급되지 않았는데 발급된 쿠폰의 개수만 올라가는 문제가 생길 수 있다.</br>
+
+⇒ 오류 발생 시, **백업 데이터와 로그**를 남기도록한다.
+
+</br></br>
+
+이번 프로젝트에서는 로그를 남기고 FailedEvent에 쿠폰이 발급되지 않은 사용자의 id만 남기도록 하였지만</br>
+**배치프로그램**에서 주기적으로 FailedEvent를 읽어와 Coupon을 발급 받게 한다면 주어진 문제를 해결할 수 있다.
+![consumer에서 에러 발생 시 처리 로직](./image/consumer_error_발생시_처리로직.png)
