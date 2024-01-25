@@ -7,6 +7,7 @@
 - 선착순 100명에게 쿠폰을 지급한다.
 - 101개 이상이 지급되면 안된다.
 - 순간적으로 몰리는 트래픽을 견딜 수 있어야 한다.
+- 1인당 1개의 쿠폰만 발급받을 수 있다.
 
 ## 🚩 문제
 [여러 명이 동시에 응모한다고 가정할 때](https://github.com/develop-hani/FCFS_coupon_system/commit/59f0761b8d5a0480f791191d4fde4e6b06d13bfa) 의도했던 100개보다 많은 쿠폰이 발급되는 것을 확인할 수 있다.
@@ -83,3 +84,21 @@ Testcode에 Thread가 대기할 수 있도록 하여 consumer가 데이터 처�
 
 **단점**
 - 쿠폰 생성까지 약간의 텀이 발생할 수 있다.
+
+## ➕ 요구사항 추가: 1인당 1개의 쿠폰만 발급받을 수 있다.
+### 시도해볼 수 있는 방법들
+1. Unique 조건 사용</br>
+  - 쿠폰테이블의 userId와 couponType에 unique 조건을 걸어 쿠폰이 1개만 생성되도록 **데이터베이스 레벨에서 막**는다.
+  - 보통 서비스에서 한 유저가 같은 타입의 쿠폰을 여러 개 가질 수도 있으므로 실용적인 방법 X
+2. [쿠폰을 발행하는 범위](https://github.com/develop-hani/FCFS_coupon_system/blob/master/api/src/main/java/com/practice/api/service/ApplyService.java#L23)에 lock 걸기
+   - 쿠폰을 발급할 때 lock을 걸고, 발급이 완료되면 lock을 해제한다.
+   - 쿠폰을 발급하기 전에 `if (발급되었다면) return;`하여 중복 발급을 막을 수 있다.
+   - api에서는 쿠폰 발급 여부만 확인하고 실제 쿠폰 발급은 consumer에서 진행하고 있는데, 그 사이에 **시간 차이때문에 쿠폰이 1개만 발급된다는 것을 보장할 수 없**다.
+   - api에서 쿠폰을 발급하게되면, **lock의 범위가 너무 길**어진다.
+3. <u>자료구조 확인하기</u>
+    - **set을 활용**하면 중복 저장이 불가능하고, 요소의 존재 여부도 빠르게 파악할 수 있다.
+    - redis에서도 set을 지원하므로 이번 프로젝트에서는 redis를 활용한다.
+
+### redis에서 set 활용하기
+`sadd` 명령어를 활용하여 test라는 key에 value로 자료구조를 넣고있다.
+![redis에서 set 활용하기](./image/redis_set_활용.png)
